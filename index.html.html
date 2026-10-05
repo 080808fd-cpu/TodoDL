@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Focus Matrix – Eisenhower, Pomodoro & Kế hoạch</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a65;--bd:#e2e0d8;--ac:#2f6fed;--ok:#22a06b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--card:#222426;--tx:#ecebe6;--mu:#9a9992;--bd:#35373a;--ac:#6b9bff;--ok:#3ccf91}}
+:root[data-theme="dark"]{--bg:#17181a;--card:#222426;--tx:#ecebe6;--mu:#9a9992;--bd:#35373a;--ac:#6b9bff;--ok:#3ccf91}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:1100px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:0}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--ac)}
+button.on,button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+input[type=text],input[type=number],input[type=date],select{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 8px;min-width:0}
+input[type=color]{width:30px;height:30px;padding:0;border:1px solid var(--bd);border-radius:8px;background:none;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mu{color:var(--mu);font-size:13px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+.q{border-top:4px solid var(--c);margin:0}
+.q h3{margin:0;font-size:15px}
+.t{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--bd)}
+.t .n{flex:1;min-width:0;overflow-wrap:anywhere}
+.t.d .n{text-decoration:line-through;color:var(--mu)}
+.x{border:0;background:none;color:var(--mu);padding:2px 6px}
+.clock{font-size:64px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:8px 0}
+.dots span{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--bd);margin:0 3px}
+.dots span.f{background:var(--ac)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal b{text-align:center;font-size:12px;color:var(--mu)}
+.c{min-height:62px;border:1px solid var(--bd);border-radius:8px;padding:3px 5px;font-size:12px;cursor:pointer;overflow:hidden}
+.c.td{outline:2px solid var(--ac)}.c.sel{border-color:var(--ac);border-width:2px}
+.c.e{visibility:hidden}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.yr{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.yr .card{cursor:pointer;margin:0}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+@media(max-width:700px){.wk{grid-template-columns:repeat(2,1fr)}.c{min-height:48px}}
+.hide{display:none}
+</style></head><body><div class="w">
+<header><h1>🎯 Focus Matrix</h1>
+<nav id="nav"><button data-v="matrix">Ma trận</button><button data-v="timer">Pomodoro</button><button data-v="cal">Lịch</button><button data-v="plan">Kế hoạch</button></nav><div class="row"><span id="st" class="mu"></span><button id="snd" title="Âm thanh"></button><button id="exp" title="Sao lưu ra file">⬇ Sao lưu</button><button id="imb" title="Khôi phục từ file">⬆ Khôi phục</button><input type="file" id="imf" accept=".json" class="hide"></div></header>
+<main id="m"></main></div>
+<script>
+const $=s=>document.querySelector(s);
+const QS=[['1','Khẩn cấp & Quan trọng','Làm ngay'],['2','Quan trọng, không khẩn cấp','Lên lịch'],['3','Khẩn cấp, không quan trọng','Ủy thác'],['4','Không khẩn, không quan trọng','Loại bỏ']];
+const DEF={tasks:[],plans:{},log:{},qc:{1:'#e5484d',2:'#2f6fed',3:'#f5a524',4:'#8b8d98'}};
+let S;try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('fm1')||'{}'))}catch(e){S=JSON.parse(JSON.stringify(DEF))}
+let sync=null,pushT;
+const stamp=()=>{const el=$('#st');if(el)el.textContent='✓ Đã lưu '+new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+(sync?' · ☁ đồng bộ':'')};
+const push=()=>{try{sync.set({json:JSON.stringify(S)}).catch(()=>{})}catch(e){}};
+const save=remote=>{try{S.timer={tid:T.tid,ph:T.ph,run:T.run,end:T.end,left:T.left,cnt:T.cnt}}catch(e){}if(!remote)S.ts=Date.now();try{localStorage.setItem('fm1',JSON.stringify(S))}catch(e){}stamp();if(sync&&!remote){clearTimeout(pushT);pushT=setTimeout(push,700)}};
+let AC,SND=S.snd!==false;
+function ac(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();return AC}catch(e){}}
+function tone(f,t0,d,ty,v){const a=ac();if(!a||!SND)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime+t0;o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.02)}
+const click=()=>{tone(1800,0,.04,'square',.12);tone(700,0,.06,'triangle',.25)};
+const updSnd=()=>{$('#snd').textContent=SND?'🔔':'🔕'};
+const pad=n=>String(n).padStart(2,'0'),ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>ymd(new Date()),uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mon=d=>{const x=new Date(d);x.setDate(x.getDate()-(x.getDay()+6)%7);return x};
+const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+let V='matrix',cm=new Date(),sel=today(),pt='W',pd=new Date(),T={tid:null,ph:'w',left:1500,run:false,end:0,cnt:0};
+const task=id=>S.tasks.find(t=>t.id==id);
+function stats(ds){const a=S.tasks.filter(t=>t.due==ds),d=a.filter(t=>t.done).length;return{t:a.length,d,p:a.length?d/a.length:0,m:S.log[ds]||0}}
+function cell(ds,n){const s=stats(ds);const bg=s.t?`background:color-mix(in srgb,var(--ok) ${Math.round(s.p*55)+(s.p?0:6)}%,transparent)`:'';
+return `<div class="c ${ds==today()?'td':''} ${ds==sel&&V=='cal'?'sel':''}" data-day="${ds}" style="${bg}"><b style="text-align:left;color:inherit">${n}</b>${s.t?`<div>✔ ${s.d}/${s.t}</div>`:''}${s.m?`<div>🍅${s.m}</div>`:''}</div>`}
+function grid(y,m){const off=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate();
+let h='<div class="cal">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<b>${x}</b>`).join('')+'<div class="c e"></div>'.repeat(off);
+for(let i=1;i<=n;i++)h+=cell(y+'-'+pad(m+1)+'-'+pad(i),i);return h+'</div>'}
+function taskRow(t,q){return `<div class="t ${t.done?'d':''}"><input type="checkbox" data-a="done" data-id="${t.id}" ${t.done?'checked':''}><input type="color" data-a="col" data-id="${t.id}" value="${t.c}" title="Màu mức độ"><span class="n">${esc(t.t)}${t.due?` <span class="mu">· ${t.due.slice(5).split('-').reverse().join('/')}</span>`:''}${t.pomos?` <span class="mu">🍅${t.pomos}</span>`:''}</span>${t.done?'':`<button class="x" data-a="go" data-id="${t.id}" title="Bắt đầu Pomodoro">▶</button>`}<button class="x" data-a="del" data-id="${t.id}">✕</button></div>`}
+function rMatrix(){
+return `<div class="card"><div class="row"><input type="text" id="nt" placeholder="Mục tiêu / công việc mới…" style="flex:1;min-width:180px"><select id="nq">${QS.map(q=>`<option value="${q[0]}">${q[0]}. ${q[2]}</option>`).join('')}</select><input type="date" id="nd" value="${today()}"><input type="color" id="nc" value="${S.qc[1]}" title="Màu tuỳ chọn"><button class="p" data-a="add">Thêm</button></div>
+<div class="row mu" style="margin-top:8px">Pomodoro: <input type="number" id="pw" value="25" min="1" style="width:60px">phút · nghỉ <input type="number" id="ps" value="5" min="1" style="width:55px"> · nghỉ dài <input type="number" id="pl" value="15" min="1" style="width:55px"> · mỗi <input type="number" id="pc" value="4" min="1" style="width:55px"> chu kì</div></div>
+<div class="grid2">${QS.map(q=>`<div class="card q" style="--c:${S.qc[q[0]]}"><div class="row" style="justify-content:space-between"><div><h3>${q[0]}. ${q[1]}</h3><span class="mu">${q[2]}</span></div><input type="color" data-a="qc" data-q="${q[0]}" value="${S.qc[q[0]]}" title="Đổi màu mặc định"></div>${S.tasks.filter(t=>t.q==q[0]).sort((a,b)=>a.done-b.done).map(t=>taskRow(t)).join('')||'<p class="mu">Trống</p>'}</div>`).join('')}</div>`}
+const dur=(t,ph)=>(t?(ph=='w'?t.w:ph=='s'?t.s:t.l):ph=='w'?25:ph=='s'?5:15)*60;
+const fmt=s=>pad(Math.floor(s/60))+':'+pad(s%60);
+function rTimer(){const t=task(T.tid),L={w:'🍅 Tập trung',s:'☕ Nghỉ ngắn',l:'🌴 Nghỉ dài'};
+const open=S.tasks.filter(x=>!x.done);
+return `<div class="card"><div class="row"><select id="ts" style="flex:1"><option value="">— Chọn mục tiêu —</option>${open.map(x=>`<option value="${x.id}" ${x.id==T.tid?'selected':''}>${esc(x.t)}</option>`).join('')}</select></div>
+<div style="text-align:center;margin-top:10px"><b>${L[T.ph]}</b>${t?` <span class="mu">· ${esc(t.t)}</span>`:''}</div>
+<div class="clock" id="clk">${fmt(T.left)}</div>
+<div class="row" style="justify-content:center"><button class="p" data-a="tg">${T.run?'Tạm dừng':'Bắt đầu'}</button><button data-a="rs">Đặt lại</button><button data-a="sk">Bỏ qua ›</button></div>
+<div class="dots" style="text-align:center;margin:12px 0">${t?Array.from({length:t.c},(_,i)=>`<span class="${i<T.cnt%t.c||(T.cnt&&T.cnt%t.c==0&&T.ph=='l')?'f':''}"></span>`).join(''):''}</div>
+<p class="mu" style="text-align:center;margin:0">Hôm nay: ${S.log[today()]||0} pomodoro${t?` · mục tiêu này: ${t.pomos}`:''}</p></div>
+${t?`<div class="card"><b>Chu kì của mục tiêu này</b><div class="row" style="margin-top:8px">Tập trung <input type="number" data-a="set" data-k="w" value="${t.w}" min="1" style="width:60px"> Nghỉ <input type="number" data-a="set" data-k="s" value="${t.s}" min="1" style="width:60px"> Nghỉ dài <input type="number" data-a="set" data-k="l" value="${t.l}" min="1" style="width:60px"> Nghỉ dài sau <input type="number" data-a="set" data-k="c" value="${t.c}" min="1" style="width:60px"> pomodoro</div></div>`:''}`}
+function rCal(){const y=cm.getFullYear(),m=cm.getMonth(),a=S.tasks.filter(t=>t.due==sel);
+return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><button data-a="cm" data-n="-1">‹</button><b>Tháng ${m+1}/${y}</b><button data-a="cm" data-n="1">›</button></div>${grid(y,m)}<p class="mu" style="margin-bottom:0">Ô càng xanh = hoàn thành càng nhiều công việc có hạn trong ngày. ✔ xong/tổng · 🍅 số pomodoro.</p></div>
+<div class="card"><b>Ngày ${sel.split('-').reverse().join('/')}</b> <span class="mu">${stats(sel).t?Math.round(stats(sel).p*100)+'% hoàn thành':''}</span>
+${a.map(t=>taskRow(t)).join('')||'<p class="mu">Chưa có công việc.</p>'}
+<div class="row" style="margin-top:8px"><input type="text" id="qt" placeholder="Thêm việc cho ngày này…" style="flex:1"><select id="qq">${QS.map(q=>`<option value="${q[0]}" ${q[0]=='2'?'selected':''}>${q[0]}. ${q[2]}</option>`).join('')}</select><button class="p" data-a="qadd">Thêm</button></div></div>`}
+function pkey(){const y=pd.getFullYear();return pt=='W'?'W'+ymd(mon(pd)):pt=='M'?'M'+y+'-'+pad(pd.getMonth()+1):'Y'+y}
+function rPlan(){const k=pkey(),items=S.plans[k]||[],y=pd.getFullYear(),m=pd.getMonth(),mo=mon(pd);
+const lab=pt=='W'?`Tuần ${ymd(mo).slice(5).split('-').reverse().join('/')} – ${ymd(addD(mo,6)).slice(5).split('-').reverse().join('/')}/${addD(mo,6).getFullYear()}`:pt=='M'?`Tháng ${m+1}/${y}`:`Năm ${y}`;
+const dn=items.filter(i=>i.d).length,pc=items.length?Math.round(dn/items.length*100):0;
+let cal='';
+if(pt=='W')cal='<div class="wk">'+Array.from({length:7},(_,i)=>{const d=addD(mo,i);return cell(ymd(d),['T2','T3','T4','T5','T6','T7','CN'][i]+' '+d.getDate())}).join('')+'</div>';
+else if(pt=='M')cal=grid(y,m);
+else cal='<div class="yr">'+Array.from({length:12},(_,i)=>{const pre=y+'-'+pad(i+1),a=S.tasks.filter(t=>t.due&&t.due.startsWith(pre)),d=a.filter(t=>t.done).length,p=a.length?Math.round(d/a.length*100):0,pl=S.plans['M'+pre]||[];
+return `<div class="card" data-mo="${i}"><b>Tháng ${i+1}</b><div class="mu">Việc: ${d}/${a.length} · Kế hoạch: ${pl.filter(x=>x.d).length}/${pl.length}</div><div class="bar"><i style="width:${p}%"></i></div></div>`}).join('')+'</div>';
+return `<div class="card"><div class="row" style="justify-content:space-between"><div class="row">${[['W','Tuần'],['M','Tháng'],['Y','Năm']].map(x=>`<button class="${pt==x[0]?'on':''}" data-a="pt" data-n="${x[0]}">${x[1]}</button>`).join('')}</div><div class="row"><button data-a="pn" data-n="-1">‹</button><b>${lab}</b><button data-a="pn" data-n="1">›</button></div></div></div>
+<div class="card">${cal}</div>
+<div class="card"><div class="row" style="justify-content:space-between"><b>Kế hoạch ${pt=='W'?'tuần':pt=='M'?'tháng':'năm'}</b><span class="mu">${dn}/${items.length} · ${pc}%</span></div><div class="bar" style="margin:8px 0"><i style="width:${pc}%"></i></div>
+${items.map(i=>`<div class="t ${i.d?'d':''}"><input type="checkbox" data-a="pdone" data-id="${i.id}" ${i.d?'checked':''}><span class="n">${esc(i.t)}</span><button class="x" data-a="pdel" data-id="${i.id}">✕</button></div>`).join('')||'<p class="mu">Chưa có mục tiêu nào.</p>'}
+<div class="row" style="margin-top:8px"><input type="text" id="pi" placeholder="Thêm mục tiêu cho kỳ này…" style="flex:1"><button class="p" data-a="padd">Thêm</button></div></div>`}
+function render(){document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v==V));
+const ae=document.activeElement&&document.activeElement.id;
+$('#m').innerHTML={matrix:rMatrix,timer:rTimer,cal:rCal,plan:rPlan}[V]();}
+function beep(){click();setTimeout(click,170);tone(660,.4,.5,'sine',.25);tone(880,.75,.7,'sine',.25)}
+function reset(){T.run=false;T.left=dur(task(T.tid),T.ph)}
+function next(){const t=task(T.tid);if(T.ph=='w'){if(t)t.pomos++;S.log[today()]=(S.log[today()]||0)+1;T.cnt++;T.ph=t&&T.cnt%t.c==0?'l':'s'}else T.ph='w';reset();save();beep();render()}
+setInterval(()=>{if(!T.run)return;T.left=Math.max(0,Math.ceil((T.end-Date.now())/1000));document.title=fmt(T.left)+' · Focus Matrix';const c=$('#clk');if(c)c.textContent=fmt(T.left);if(!T.left)next()},400);
+const val=id=>$(id).value;
+document.addEventListener('click',e=>{
+if(e.target.id=='snd'){SND=!SND;S.snd=SND;save();updSnd();click();return}
+if(e.target.id=='exp'){exportData();return}
+if(e.target.id=='imb'){$('#imf').click();return}
+const v=e.target.closest('[data-v]');if(v){V=v.dataset.v;render();return}
+const dy=e.target.closest('[data-day]');if(dy){sel=dy.dataset.day;if(V=='plan'){}else{V='cal'}render();return}
+const mo=e.target.closest('[data-mo]');if(mo){pd=new Date(pd.getFullYear(),+mo.dataset.mo,1);pt='M';render();return}
+const b=e.target.closest('[data-a]');if(!b||b.tagName=='INPUT')return;const a=b.dataset.a,id=b.dataset.id,n=+b.dataset.n;
+if(a=='add'){const t=val('#nt').trim();if(!t)return;const q=val('#nq');S.tasks.push({id:uid(),t,q,c:val('#nc'),due:val('#nd'),done:false,w:+val('#pw')||25,s:+val('#ps')||5,l:+val('#pl')||15,c:+val('#pc')||4,pomos:0})}
+else if(a=='qadd'){const t=val('#qt').trim();if(!t)return;const q=val('#qq');S.tasks.push({id:uid(),t,q,c:S.qc[q],due:sel,done:false,w:25,s:5,l:15,c:4,pomos:0})}
+else if(a=='del')S.tasks=S.tasks.filter(t=>t.id!=id);
+else if(a=='go'){T.tid=id;T.ph='w';T.cnt=0;reset();V='timer'}
+else if(a=='tg'){if(T.run){T.run=false}else{click();T.run=true;T.end=Date.now()+T.left*1000;if('Notification'in window&&Notification.permission=='default')Notification.requestPermission()}}
+else if(a=='rs')reset();
+else if(a=='sk'){T.ph=T.ph=='w'?'s':'w';reset()}
+else if(a=='cm')cm=new Date(cm.getFullYear(),cm.getMonth()+n,1);
+else if(a=='pt'){pt=b.dataset.n}
+else if(a=='pn'){if(pt=='W')pd=addD(pd,7*n);else if(pt=='M')pd=new Date(pd.getFullYear(),pd.getMonth()+n,1);else pd=new Date(pd.getFullYear()+n,0,1)}
+else if(a=='padd'){const t=val('#pi').trim();if(!t)return;const k=pkey();(S.plans[k]=S.plans[k]||[]).push({id:uid(),t,d:false})}
+else if(a=='pdel'){const k=pkey();S.plans[k]=S.plans[k].filter(i=>i.id!=id)}
+save();render()});
+document.addEventListener('change',e=>{const b=e.target,a=b.dataset.a;
+if(b.id=='ts'){T.tid=b.value;T.ph='w';T.cnt=0;reset();render();return}
+if(a=='done'){const t=task(b.dataset.id);t.done=b.checked;t.doneAt=b.checked?today():null}
+else if(a=='col')task(b.dataset.id).c=b.value;
+else if(a=='qc'){S.qc[b.dataset.q]=b.value}
+else if(a=='pdone'){S.plans[pkey()].find(i=>i.id==b.dataset.id).d=b.checked}
+else if(a=='set'){task(T.tid)[b.dataset.k]=Math.max(1,+b.value||1);if(b.dataset.k!='c'&&!T.run)reset()}
+else return;save();render()});
+document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.type=='text'){const m={nt:'add',qt:'qadd',pi:'padd'}[e.target.id];if(m)document.querySelector(`[data-a="${m}"]`).click()}});
+async function exportData(){const fn='focus-matrix-'+today()+'.json';try{const d=await claude.use('downloads');if(d){await d.save({filename:fn,data:JSON.stringify(S,null,1)});return}}catch(e){}alert('Trình duyệt này không cho phép tải file.')}
+$('#imf').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!Array.isArray(o.tasks))throw 0;Object.assign(S,DEF,o);S.ts=Date.now();save();render();alert('Đã khôi phục dữ liệu.')}catch(x){alert('File không hợp lệ.')}};r.readAsText(f);e.target.value=''});
+['visibilitychange','pagehide','beforeunload'].forEach(ev=>addEventListener(ev,()=>save(true)));
+setInterval(()=>save(true),15000);
+(async()=>{try{if(!window.claude)return;const[db,user]=await Promise.all([claude.use('db'),claude.use('user')]);if(!db||!user)return;const id=await user.id();if(!id)return;const ref=db.collection('data/users/'+id).doc('fm');sync=ref;
+ref.onSnapshot(sn=>{if(!sn.exists){push();stamp();return}let r;try{r=JSON.parse(sn.data().json)}catch(x){return}
+if((r.ts||0)>(S.ts||0)){Object.assign(S,{tasks:r.tasks||[],plans:r.plans||{},log:r.log||{},qc:r.qc||S.qc,ts:r.ts});save(true);render()}else if((r.ts||0)<(S.ts||0))push();stamp()},()=>{})}catch(e){}})();
+if(S.timer){Object.assign(T,S.timer);if(T.run)T.left=Math.max(0,Math.ceil((T.end-Date.now())/1000));else if(!T.left)T.left=dur(task(T.tid),T.ph)}
+updSnd();stamp();render();
+</script></body></html>
